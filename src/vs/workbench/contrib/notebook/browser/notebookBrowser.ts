@@ -4,18 +4,18 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IMouseWheelEvent } from 'vs/base/browser/mouseEvent';
-import { BareFontInfo } from 'vs/editor/common/config/fontInfo';
-import { CodeEditorWidget } from 'vs/editor/browser/widget/codeEditorWidget';
-import { OutputRenderer } from 'vs/workbench/contrib/notebook/browser/view/output/outputRenderer';
-import { IOutput, CellKind, IRenderOutput } from 'vs/workbench/contrib/notebook/common/notebookCommon';
-import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
-import { NotebookViewModel, IModelDecorationsChangeAccessor, CellViewModel } from 'vs/workbench/contrib/notebook/browser/viewModel/notebookViewModel';
-import { FindMatch } from 'vs/editor/common/model';
-import { Range } from 'vs/editor/common/core/range';
+import { ProgressBar } from 'vs/base/browser/ui/progressbar/progressbar';
 import { ToolBar } from 'vs/base/browser/ui/toolbar/toolbar';
 import { DisposableStore } from 'vs/base/common/lifecycle';
 import { URI } from 'vs/base/common/uri';
-import { ProgressBar } from 'vs/base/browser/ui/progressbar/progressbar';
+import { CodeEditorWidget } from 'vs/editor/browser/widget/codeEditorWidget';
+import { BareFontInfo } from 'vs/editor/common/config/fontInfo';
+import { Range } from 'vs/editor/common/core/range';
+import { FindMatch } from 'vs/editor/common/model';
+import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
+import { OutputRenderer } from 'vs/workbench/contrib/notebook/browser/view/output/outputRenderer';
+import { IModelDecorationsChangeAccessor, NotebookViewModel, CellViewModel } from 'vs/workbench/contrib/notebook/browser/viewModel/notebookViewModel';
+import { CellKind, IOutput, IRenderOutput } from 'vs/workbench/contrib/notebook/common/notebookCommon';
 
 export const KEYBINDING_CONTEXT_NOTEBOOK_FIND_WIDGET_FOCUSED = new RawContextKey<boolean>('notebookFindWidgetFocused', false);
 
@@ -32,7 +32,8 @@ export interface ICellViewModel {
 	handle: number;
 	uri: URI;
 	cellKind: CellKind;
-	state: CellState;
+	editState: CellEditState;
+	runState: CellRunState;
 	focusMode: CellFocusMode;
 	getText(): string;
 }
@@ -102,6 +103,11 @@ export interface INotebookEditor {
 	 * Focus the container of a cell (the monaco editor inside is not focused).
 	 */
 	focusNotebookCell(cell: ICellViewModel, focusEditor: boolean): void;
+
+	/**
+	 * Execute the given notebook cell
+	 */
+	executeNotebookCell(cell: ICellViewModel): Promise<void>;
 
 	/**
 	 * Get current active cell
@@ -237,7 +243,12 @@ export enum CellRevealPosition {
 	Center
 }
 
-export enum CellState {
+export enum CellRunState {
+	Idle,
+	Running
+}
+
+export enum CellEditState {
 	/**
 	 * Default state.
 	 * For markdown cell, it's Markdown preview.
